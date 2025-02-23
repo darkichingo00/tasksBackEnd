@@ -3,49 +3,81 @@ import dotenv from "dotenv";
 import { Task, TaskStatus } from "../models/task.model";
 import { v4 as uuidv4 } from "uuid"; 
 import { Timestamp } from "firebase-admin/firestore";
+import * as admin from 'firebase-admin';
 
 dotenv.config();
 
 const TASKS_COLLECTION = "tasks";
 
 export class TaskService {
-  // Obtener todas las tareas
-  static async getAllTasks(): Promise<Task[]> {
-    const snapshot = await db.collection(TASKS_COLLECTION).get();
-    return snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    } as Task));
-  }
-
+  
   // Agregar una nueva tarea en Firestore
-  static async addTask(userId: string, title: string, description: string, date: string, status: TaskStatus): Promise<Task> {
-    const id = uuidv4();
-    const newTask: Task = { id, userId, title, description, date: Timestamp.fromDate(new Date(date)), status };
-
-    await db.collection(TASKS_COLLECTION).doc(id).set(newTask);
-
-    return newTask;
+  static async addTask(
+    userId: string,
+    title: string,
+    description: string,
+    date: string,
+    time: string,
+    status: TaskStatus
+  ): Promise<Task> {
+    try {
+      const id = uuidv4();
+  
+      // Convertir la fecha y la hora a un objeto Timestamp
+      const dateTimeString = `${date}T${time}:00`;
+      const dateObject = new Date(dateTimeString);
+  
+      if (isNaN(dateObject.getTime())) {
+        throw new Error('Invalid date or time format');
+      }
+  
+      const timestamp = Timestamp.fromDate(dateObject);
+  
+      const newTask: Task = {
+        id,
+        userId,
+        title,
+        description,
+        date: timestamp, // Almacenar como Timestamp
+        time,
+        status,
+      };
+  
+      await db.collection(TASKS_COLLECTION).doc(id).set(newTask);
+  
+      return newTask;
+    } catch (error) {
+      console.error('Error adding task:', error);
+      throw error;
+    }
   }
 
   // Actualizar una tarea en Firestore
-  static async updateTask(taskId: string, updatedTask: Partial<Task>): Promise<Task | null> {
-    const taskRef = db.collection(TASKS_COLLECTION).doc(taskId);
-    const doc = await taskRef.get();
+  static async updateTask(taskId: string, updates: Partial<Task>): Promise<Task | null> {
+    try {
+      
+      if (Object.keys(updates).length === 0) {
+        throw new Error('No updates provided');
+      }
 
-    if (!doc.exists) return null;
+      console.log(updates);
 
-    await taskRef.update(updatedTask);
-    const updatedData = await taskRef.get();
-    return { id: taskId, ...updatedData.data() } as Task;
+      await db.collection(TASKS_COLLECTION).doc(taskId).update(updates);
+
+      const updatedTaskDoc = await db.collection(TASKS_COLLECTION).doc(taskId).get();
+      if (!updatedTaskDoc.exists) {
+        throw new Error('Task not found after update');
+      }
+
+ 
+      const updatedTask = updatedTaskDoc.data() as Task;
+      return updatedTask;
+    } catch (error) {
+      console.error('Error updating task:', error);
+      throw error;
+    }
   }
 
-  // Actualizar detalles de una tarea sin cambiar su estado
-  static async updateTaskDetails(taskId: string, title: string, description: string, date: string): Promise<Task | null> {
-    return this.updateTask(taskId, { title, description, date });
-  }
-
-  // Eliminar una tarea en Firestore
   static async deleteTask(taskId: string): Promise<boolean> {
     const taskRef = db.collection(TASKS_COLLECTION).doc(taskId);
     const doc = await taskRef.get();
@@ -57,19 +89,36 @@ export class TaskService {
   }
 
   static async getTasksByUser(userId: string): Promise<Task[]> {
-    const snapshot = await db.collection(TASKS_COLLECTION)
-      .where("userId", "==", userId)
-      .orderBy("date", "desc") // ✅ Ahora `date` es `Timestamp`
-      .get();
-
-    return snapshot.docs.map(doc => {
+    try {
+      const snapshot = await db.collection('tasks')
+        .where('userId', '==', userId)
+        .orderBy('date', 'desc')
+        .get();
+  
+      return snapshot.docs.map(doc => {
         const data = doc.data();
+  
+        // Verificar que `data.date` sea un Timestamp
+        if (!(data.date instanceof admin.firestore.Timestamp)) {
+          throw new Error(`Invalid date format in document ${doc.id}`);
+        }
+  
+        // Convertir Timestamp a string (ISO)
+        const dateString = data.date.toDate().toISOString();
+  
         return {
           id: doc.id,
-          ...data,
-          date: (data.date as Timestamp).toDate().toISOString() // ✅ Convertir `Timestamp` a `string`
+          title: data.title,
+          description: data.description,
+          date: dateString, // Convertido a string
+          status: data.status,
+          userId: data.userId,
+          time: data.time
         } as Task;
-    });
+      });
+    } catch (error) {
+      console.error('Error fetching tasks:', error);
+      throw error;
+    }
   }
-
 }

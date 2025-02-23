@@ -1,4 +1,4 @@
-import { Timestamp } from "firebase-admin/firestore";
+import * as admin from 'firebase-admin';
 
 export enum TaskStatus {
     PENDING = "PENDING",
@@ -6,12 +6,12 @@ export enum TaskStatus {
     COMPLETED = "COMPLETED",
     DELETE = "DELETE"
 }
-
 export interface Task {
     id: string;
     title: string;
     description: string;
-    date: Timestamp | string;
+    date: admin.firestore.Timestamp | string;
+    time?: string;
     status: TaskStatus;
-    userId: string;
+    userId: string;    
 }

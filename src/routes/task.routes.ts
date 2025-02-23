@@ -4,15 +4,6 @@ import { TaskController } from "../controller/task.controller";
 
 const router = Router();
 
-// Optiene todas las tareas
-router.get("/", authenticateJWT, async (req, res) => {
-  try {
-    await TaskController.getTasks(req, res);
-  } catch (error) {
-    res.status(500).json({ message: "Error interno del servidor", error });
-  }
-});
-
 // Crea las tareas
 router.post("/", authenticateJWT, async (req, res) => {
   try {
@@ -26,15 +17,6 @@ router.post("/", authenticateJWT, async (req, res) => {
 router.put("/:taskId", authenticateJWT, async (req, res) => {
   try {
     await TaskController.updateTask(req, res);
-  } catch (error) {
-    res.status(500).json({ message: "Error interno del servidor", error });
-  }
-});
-
-// Actualiza el detalle de una tarea por ID
-router.put("/:taskId/details", authenticateJWT, async (req, res) => {
-  try {
-    await TaskController.updateTaskDetails(req, res);
   } catch (error) {
     res.status(500).json({ message: "Error interno del servidor", error });
   }

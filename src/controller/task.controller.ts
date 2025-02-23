@@ -4,20 +4,11 @@ import { TaskStatus } from "../models/task.model";
 import { AuthenticatedRequest } from "../types/express";
 
 export class TaskController {
-  // Obtener todas las tareas
-  static async getTasks(req: Request, res: Response): Promise<void> {
-    try {
-      const tasks = await TaskService.getAllTasks();
-      res.json(tasks);
-    } catch (error) {
-      res.status(500).json({ message: "Error al obtener tareas", error });
-    }
-  }
 
   // Agregar una tarea
   static async addTask(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
-      const { title, description, date, status } = req.body;
+      const { title, description, date, time, status } = req.body;
 
       if (!req.user) {
         res.status(401).json({ message: "Usuario no autenticado" });
@@ -36,7 +27,7 @@ export class TaskController {
         return;
       }
 
-      const newTask = await TaskService.addTask(userId, title, description, date, status as TaskStatus);
+      const newTask = await TaskService.addTask(userId, title, description, date, time, status as TaskStatus);
 
       res.status(201).json({ message: "Tarea creada exitosamente", task: newTask });
     } catch (error) {
@@ -66,29 +57,6 @@ export class TaskController {
     }
   }
 
-  // Actualizar detalles de una tarea por ID
-  static async updateTaskDetails(req: Request, res: Response): Promise<void> {
-    try {
-      const taskId = req.params.taskId;
-      const { title, description, date } = req.body;
-
-      if (!title || !description || !date) {
-        res.status(400).json({ message: "Título, descripción y fecha son obligatorios" });
-        return;
-      }
-
-      const updatedTask = await TaskService.updateTaskDetails(taskId, title, description, date);
-      if (!updatedTask) {
-        res.status(404).json({ message: "Tarea no encontrada" });
-        return;
-      }
-
-      res.json({ message: "Detalles de la tarea actualizados correctamente", task: updatedTask });
-    } catch (error) {
-      res.status(500).json({ message: "Error al actualizar los detalles de la tarea", error });
-    }
-  }
-
   // Eliminar una tarea por ID
   static async deleteTask(req: Request, res: Response): Promise<void> {
     try {
@@ -111,8 +79,7 @@ export class TaskController {
         res.status(401).json({ message: "Usuario no autenticado" });
         return;
       }
-
-      const userId = req.user.userId; // ✅ Extraer userId del token
+      const userId = req.user.userId;
 
       const tasks = await TaskService.getTasksByUser(userId);
 
